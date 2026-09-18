@@ -12,6 +12,7 @@ import {
 import { ProtectedRoute } from "@/components/dashboards/shared/ProtectedRoute";
 import { ActivityLogItem } from "@/components/dashboards/shared/ActivityLogItem";
 import { StatusBadge } from "@/components/dashboards/shared/StatusBadge";
+import { Badge } from "@/components/common/Badge";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -99,7 +100,7 @@ function RecordsConsentContent() {
       </div>
 
       <Tabs defaultValue="audit-log">
-        <TabsList>
+        <TabsList className="max-w-full overflow-x-auto">
           <TabsTrigger value="audit-log">Audit Log</TabsTrigger>
           <TabsTrigger value="consent">Consent Requests</TabsTrigger>
           <TabsTrigger value="anomalies">Anomalies</TabsTrigger>
@@ -133,7 +134,11 @@ function RecordsConsentContent() {
                   onValueChange={(v) => setActionFilter((v as AuditActionType | "all") ?? "all")}
                 >
                   <SelectTrigger className="w-full sm:w-44">
-                    <SelectValue />
+                    <SelectValue>
+                      {(value: AuditActionType | "all") =>
+                        value === "all" ? "All actions" : AUDIT_ACTION_LABELS[value]
+                      }
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All actions</SelectItem>
@@ -259,7 +264,10 @@ function RecordsConsentContent() {
                       />
                       {flag.orgName}
                     </span>
-                    <StatusBadge status={flag.severity === "critical" ? "declined" : "pending"} />
+                    <Badge
+                      label={flag.severity === "critical" ? "Critical" : "Warning"}
+                      variant={flag.severity === "critical" ? "declined" : "pending"}
+                    />
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-wrap items-center justify-between gap-3 text-sm">
