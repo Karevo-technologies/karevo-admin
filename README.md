@@ -2,7 +2,8 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Project documentation
 
-See [docs/SUPER_ADMIN_DASHBOARD.md](docs/SUPER_ADMIN_DASHBOARD.md) for the technical spec (RBAC, module breakdown, data model, security and build sequencing) guiding this build.
+- [docs/SUPER_ADMIN_DASHBOARD.md](docs/SUPER_ADMIN_DASHBOARD.md) — technical spec (RBAC, module breakdown, data model, security and build sequencing) guiding this build.
+- [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md) — the shared Karevo design system (components, tokens, patterns) every screen in this dashboard must follow.
 
 ## Getting Started
 
