@@ -1,11 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
-  AlertCircleIcon,
   CheckmarkCircle01Icon,
   Clock01Icon,
   File01Icon,
@@ -29,13 +27,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
+import type { AdminRole } from "@/lib/rbac";
 import type { ActivityStatus } from "@/mock/activityData";
 import { mockPatients, type PatientAccount, type PatientAccountStatus, type PatientVerificationStatus } from "@/mock/usersData";
+import { Textarea } from "@/components/ui/textarea";
 
 type SearchType = "id" | "phone" | "name";
 
 type RecoveryFormState = {
   reasonCode: string;
+  explanation: string;
   evidenceName: string;
 };
 
@@ -62,13 +63,16 @@ function normalizeSearch(value: string) {
   return value.trim().toLowerCase();
 }
 
-function searchMatches(patient: PatientAccount, type: SearchType, query: string) {
+function searchMatches(patient: PatientAccount, type: SearchType, query: string, role: AdminRole) {
   const normalized = normalizeSearch(query);
   if (!normalized) return true;
 
   if (type === "id") return patient.id.toLowerCase().includes(normalized);
-  if (type === "phone") return patient.phone.replace(/\D/g, "").includes(normalized.replace(/\D/g, ""));
-  return patient.name.toLowerCase().includes(normalized);
+  if (type === "phone") {
+    const phoneQuery = normalized.replace(/\D/g, "");
+    return Boolean(phoneQuery) && patient.phone.replace(/\D/g, "").includes(phoneQuery);
+  }
+  return role === "super_admin" && patient.name.toLowerCase().includes(normalized);
 }
 
 function UsersContent() {
@@ -92,19 +96,20 @@ function UsersContent() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
-  const [patients, setPatients] = useState(mockPatients);
+  const patients = mockPatients;
+  const [submittedRecoveryIds, setSubmittedRecoveryIds] = useState<string[]>([]);
   const [isRecoveryOpen, setIsRecoveryOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<PatientAccount | null>(null);
   const [isSubmittingRecovery, setIsSubmittingRecovery] = useState(false);
   const [recoverySuccess, setRecoverySuccess] = useState(false);
-  const [recoveryForm, setRecoveryForm] = useState<RecoveryFormState>({ reasonCode: "", evidenceName: "" });
-  const [touched, setTouched] = useState({ reasonCode: false, evidence: false });
+  const [recoveryForm, setRecoveryForm] = useState<RecoveryFormState>({ reasonCode: "", explanation: "", evidenceName: "" });
+  const [touched, setTouched] = useState({ reasonCode: false, explanation: false, evidence: false });
 
   const filteredPatients = useMemo(() => {
     const query = activeSearch.trim();
     if (!query) return [];
-    return patients.filter((patient) => searchMatches(patient, searchType, query));
-  }, [activeSearch, patients, searchType]);
+    return patients.filter((patient) => searchMatches(patient, searchType, query, role));
+  }, [activeSearch, patients, role, searchType]);
 
   const visiblePatient =
     filteredPatients.find((patient) => patient.id === selectedPatientId) ?? filteredPatients[0] ?? null;
@@ -125,8 +130,8 @@ function UsersContent() {
   };
 
   const resetRecoveryForm = () => {
-    setRecoveryForm({ reasonCode: "", evidenceName: "" });
-    setTouched({ reasonCode: false, evidence: false });
+    setRecoveryForm({ reasonCode: "", explanation: "", evidenceName: "" });
+    setTouched({ reasonCode: false, explanation: false, evidence: false });
     setRecoverySuccess(false);
     setIsSubmittingRecovery(false);
   };
@@ -145,15 +150,14 @@ function UsersContent() {
   };
 
   const reasonError = touched.reasonCode && !recoveryForm.reasonCode ? "Select a reason code." : "";
+  const explanationError = touched.explanation && !recoveryForm.explanation.trim() ? "Provide a reason or explanation." : "";
   const evidenceError = touched.evidence && !recoveryForm.evidenceName ? "Attach supportive evidence." : "";
 
-  const canSubmitRecovery = Boolean(recoveryForm.reasonCode) && Boolean(recoveryForm.evidenceName);
-
   const submitRecovery = () => {
-    const nextTouched = { reasonCode: true, evidence: true };
+    const nextTouched = { reasonCode: true, explanation: true, evidence: true };
     setTouched(nextTouched);
 
-    if (!recoveryForm.reasonCode || !recoveryForm.evidenceName) {
+    if (!recoveryForm.reasonCode || !recoveryForm.explanation.trim() || !recoveryForm.evidenceName) {
       return;
     }
 
@@ -165,19 +169,7 @@ function UsersContent() {
         return;
       }
 
-      setPatients((current) =>
-        current.map((patient) =>
-          patient.id === selectedPatient.id
-            ? {
-                ...patient,
-                verificationStatus: "verified",
-                accountStatus: "active",
-                lastUpdated: new Date().toISOString(),
-              }
-            : patient,
-        ),
-      );
-
+      setSubmittedRecoveryIds((current) => [...new Set([...current, selectedPatient.id])]);
       setRecoverySuccess(true);
       setIsSubmittingRecovery(false);
     }, 350);
@@ -391,15 +383,21 @@ function UsersContent() {
                 </div>
 
                 {patientDetail.verificationStatus !== "verified" && (
-                  <div className="flex justify-end">
-                    <Button
-                      variant="outline"
-                      onClick={() => openRecoveryFlow(patientDetail)}
-                      className="w-full sm:w-auto"
-                    >
-                      {patientDetail.verificationStatus === "failed" ? "Recover Identity" : "Resolve KYC"}
-                    </Button>
-                  </div>
+                  submittedRecoveryIds.includes(patientDetail.id) ? (
+                    <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
+                      A KYC recovery request has been submitted for review.
+                    </div>
+                  ) : (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="outline"
+                        onClick={() => openRecoveryFlow(patientDetail)}
+                        className="w-full sm:w-auto"
+                      >
+                        {patientDetail.verificationStatus === "failed" ? "Recover Identity" : "Resolve KYC"}
+                      </Button>
+                    </div>
+                  )
                 )}
 
                 <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
@@ -428,10 +426,10 @@ function UsersContent() {
             <div className="mb-4 flex size-14 items-center justify-center rounded-full bg-primary/10 text-primary">
               <HugeiconsIcon icon={CheckmarkCircle01Icon} size={22} />
             </div>
-            <h3 className="text-base font-semibold text-foreground">Identity recovery approved</h3>
+            <h3 className="text-base font-semibold text-foreground">Recovery request submitted</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              The patient record has been updated to reflect a verified identity and the recovery action
-              has been logged for review.
+              The request has been recorded for review. The patient&apos;s verification and account statuses
+              remain unchanged until the request is reviewed.
             </p>
             <Button onClick={handleRecoveryClose} className="mt-5">
               Close
@@ -440,16 +438,18 @@ function UsersContent() {
         ) : (
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground">
-              Use a manual override only after verifying identity evidence. A reason code and evidence
-              file are required.
+              Submit a recovery or dispute request with a reason code, explanation, and supporting evidence.
             </p>
 
             <div className="space-y-1.5">
               <Label>Reason code</Label>
-              <Select value={recoveryForm.reasonCode} onValueChange={(value) => {
-                setRecoveryForm((current) => ({ ...current, reasonCode: value ?? "" }));
-                setTouched((current) => ({ ...current, reasonCode: true }));
-              }}>
+              <Select
+                value={recoveryForm.reasonCode}
+                onValueChange={(value) => {
+                  setRecoveryForm((current) => ({ ...current, reasonCode: value ?? "" }));
+                  setTouched((current) => ({ ...current, reasonCode: true }));
+                }}
+              >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Select a reason" />
                 </SelectTrigger>
@@ -462,6 +462,20 @@ function UsersContent() {
                 </SelectContent>
               </Select>
               {reasonError ? <p className="text-xs text-destructive">{reasonError}</p> : null}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="kyc-explanation">Reason / explanation</Label>
+              <Textarea
+                id="kyc-explanation"
+                value={recoveryForm.explanation}
+                onChange={(event) => setRecoveryForm((current) => ({ ...current, explanation: event.target.value }))}
+                onBlur={() => setTouched((current) => ({ ...current, explanation: true }))}
+                placeholder="Describe what was reviewed or resolved"
+                rows={3}
+                aria-invalid={Boolean(explanationError)}
+              />
+              {explanationError ? <p className="text-xs text-destructive">{explanationError}</p> : null}
             </div>
 
             <div className="space-y-1.5">
@@ -491,7 +505,7 @@ function UsersContent() {
               <Button variant="outline" onClick={handleRecoveryClose}>
                 Cancel
               </Button>
-              <Button loading={isSubmittingRecovery} disabled={!canSubmitRecovery || isSubmittingRecovery} onClick={submitRecovery}>
+              <Button loading={isSubmittingRecovery} disabled={isSubmittingRecovery} onClick={submitRecovery}>
                 Submit recovery
               </Button>
             </div>
