@@ -13,6 +13,7 @@ import {
 } from "@hugeicons/core-free-icons";
 import { EmptyState } from "@/components/common/EmptyState";
 import { Button } from "@/components/common/Button";
+import { Badge } from "@/components/common/Badge";
 import { Modal } from "@/components/common/Modal";
 import { ProtectedRoute } from "@/components/dashboards/shared/ProtectedRoute";
 import { StatusBadge } from "@/components/dashboards/shared/StatusBadge";
@@ -53,10 +54,22 @@ const VERIFICATION_STATUS_MAP: Record<PatientVerificationStatus, ActivityStatus>
   failed: "declined",
 };
 
+const VERIFICATION_STATUS_LABELS: Record<PatientVerificationStatus, string> = {
+  verified: "Verified",
+  pending: "Pending",
+  failed: "Failed",
+};
+
 const ACCOUNT_STATUS_MAP: Record<PatientAccountStatus, ActivityStatus> = {
   active: "approved",
   pending: "pending",
   suspended: "declined",
+};
+
+const ACCOUNT_STATUS_LABELS: Record<PatientAccountStatus, string> = {
+  active: "Active",
+  pending: "Pending",
+  suspended: "Suspended",
 };
 
 function normalizeSearch(value: string) {
@@ -291,7 +304,10 @@ function UsersContent() {
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <p className="truncate font-medium text-foreground">{patient.name}</p>
-                          <StatusBadge status={VERIFICATION_STATUS_MAP[patient.verificationStatus]} />
+                          <Badge
+                            label={VERIFICATION_STATUS_LABELS[patient.verificationStatus]}
+                            variant={VERIFICATION_STATUS_MAP[patient.verificationStatus]}
+                          />
                         </div>
                         <p className="mt-1 text-xs text-muted-foreground">{patient.id}</p>
                         <p className="text-xs text-muted-foreground">{patient.phone}</p>
@@ -319,7 +335,10 @@ function UsersContent() {
                       <h2 className="text-lg font-semibold text-foreground">{patientDetail.name}</h2>
                     </div>
                   </div>
-                  <StatusBadge status={VERIFICATION_STATUS_MAP[patientDetail.verificationStatus]} />
+                  <Badge
+                    label={VERIFICATION_STATUS_LABELS[patientDetail.verificationStatus]}
+                    variant={VERIFICATION_STATUS_MAP[patientDetail.verificationStatus]}
+                  />
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -339,14 +358,20 @@ function UsersContent() {
                       <HugeiconsIcon icon={ShieldCheckIcon} size={14} />
                       Verification
                     </div>
-                    <StatusBadge status={VERIFICATION_STATUS_MAP[patientDetail.verificationStatus]} />
+                    <Badge
+                      label={VERIFICATION_STATUS_LABELS[patientDetail.verificationStatus]}
+                      variant={VERIFICATION_STATUS_MAP[patientDetail.verificationStatus]}
+                    />
                   </div>
                   <div className="rounded-xl border border-border bg-card p-3">
                     <div className="mb-2 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
                       <HugeiconsIcon icon={CheckmarkCircle01Icon} size={14} />
                       Account status
                     </div>
-                    <StatusBadge status={ACCOUNT_STATUS_MAP[patientDetail.accountStatus]} />
+                    <Badge
+                      label={ACCOUNT_STATUS_LABELS[patientDetail.accountStatus]}
+                      variant={ACCOUNT_STATUS_MAP[patientDetail.accountStatus]}
+                    />
                   </div>
                 </div>
 
